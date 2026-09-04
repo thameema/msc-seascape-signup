@@ -563,23 +563,31 @@
   }
 
   // ---------- user actions ----------
-  function selectFamily(familyId){
-    myFamilyId = familyId;
-    try { localStorage.setItem(MYFAM_KEY, familyId); } catch(e){}
+  // Sets pinGate to reflect whether familyId is currently authenticated in this browser.
+  // Does NOT render by itself for the synchronous/authed case (caller renders); for the
+  // async not-yet-known case it sets pinGate to 'checking' synchronously (safe for the
+  // caller's own render) and triggers its own render() once the check resolves.
+  function applyFamilyGate(familyId){
+    if (!familyId) { pinGate = { familyId: null, mode: null, error: '', busy: false }; return; }
     if (authedFamilies[familyId]) {
       pinGate = { familyId: null, mode: null, error: '', busy: false };
       var d = getDraftFamily(familyId);
       if (!activeMemberId[familyId]) activeMemberId[familyId] = d.members[0] && d.members[0].id;
-      render();
       return;
     }
     pinGate = { familyId: familyId, mode: 'checking', error: '', busy: true };
-    render();
     fetchPinSet(familyId).then(function(isSet){
       if (myFamilyId !== familyId) return; // user switched away while we were checking
       pinGate = { familyId: familyId, mode: isSet ? 'enter' : 'setup', error: '', busy: false };
       render();
     });
+  }
+
+  function selectFamily(familyId){
+    myFamilyId = familyId;
+    try { localStorage.setItem(MYFAM_KEY, familyId); } catch(e){}
+    applyFamilyGate(familyId);
+    render();
   }
 
   function submitPinSetup(familyId){
@@ -1280,6 +1288,7 @@
   function boot(){
     if (!state) { render(); return; }
     bindEvents();
+    if (myFamilyId) applyFamilyGate(myFamilyId);
     setStatus('connecting', 'Connecting…');
     render();
     fetch(FIREBASE_URL + '/state.json', { cache: 'no-store' }).then(function(res){
