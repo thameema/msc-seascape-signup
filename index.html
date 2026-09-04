@@ -64,7 +64,16 @@
     '.topbar-inner{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}',
     '.brand-kicker{display:block;font-family:var(--font-mono);font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}',
     '.brand h1{margin:0;font-size:1.7rem;font-weight:750;letter-spacing:-0.01em;text-wrap:balance;color:var(--ink)}',
+    '.topbar-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}',
     '.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--ink-soft);padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface);white-space:nowrap;flex-shrink:0}',
+    '.mobile-nav-toggle{display:none;font-size:1.15rem;line-height:1;width:40px;height:40px;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink);cursor:pointer;flex-shrink:0}',
+    '.mobile-nav-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,20,0.45);z-index:48}',
+    '.mobile-nav-backdrop.open{display:block}',
+    '.mobile-nav-drawer{position:fixed;top:0;left:0;bottom:0;width:80vw;max-width:300px;background:var(--surface);z-index:49;box-shadow:2px 0 24px rgba(0,0,0,0.22);padding:16px 14px 24px;display:flex;flex-direction:column;gap:2px;transform:translateX(-105%);transition:transform .22s ease}',
+    '.mobile-nav-drawer.open{transform:translateX(0)}',
+    '.mobile-nav-close{align-self:flex-end;background:transparent;border:none;font-size:1.3rem;color:var(--ink-soft);cursor:pointer;padding:8px;margin-bottom:6px;line-height:1}',
+    '.mobile-nav-drawer a{font-size:1.02rem;color:var(--ink);text-decoration:none;padding:15px 12px;border-radius:8px;border-bottom:1px solid var(--border-soft)}',
+    '.mobile-nav-drawer a:active{background:var(--accent-tint)}',
     '.status-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex-shrink:0}',
     '.status-idle .dot,.status-saved .dot{background:var(--accent)}',
     '.status-saving .dot{background:var(--pop);animation:pulse 1s ease-in-out infinite}',
@@ -165,10 +174,10 @@
     '.dash-day-head .day-title{font-weight:700;color:var(--ink)}',
     '.dash-day-count{margin-left:auto;font-family:var(--font-mono);font-size:0.8rem;color:var(--ink-soft)}',
     '.table-wrap{overflow-x:auto;margin-top:8px}',
-    '.dash-table{border-collapse:collapse;width:100%;font-size:0.82rem}',
+    '.dash-table{border-collapse:collapse;width:100%;min-width:480px;font-size:0.82rem}',
     '.dash-table th,.dash-table td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}',
     '.dash-table th.num,.dash-table td.num{text-align:right}',
-    '.dash-table td:first-child,.dash-table th:first-child{white-space:normal}',
+    '.dash-table td:first-child,.dash-table th:first-child{white-space:normal;min-width:160px}',
     '.dash-table tfoot td{font-weight:700;border-top:2px solid var(--border);border-bottom:none}',
     '.dash-fam-head{display:flex;justify-content:space-between;gap:10px;font-weight:700;color:var(--ink);margin-bottom:8px;flex-wrap:wrap}',
     '.dash-fam-total{font-family:var(--font-mono);font-weight:600;color:var(--accent-strong);font-size:0.86rem}',
@@ -185,7 +194,15 @@
     '.page-footer .fine{margin-top:6px;font-size:0.76rem}',
     '#toast-region{position:fixed;left:0;right:0;bottom:14px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;z-index:40}',
     '.toast{background:var(--ink);color:var(--bg);font-size:0.86rem;padding:10px 16px;border-radius:999px;box-shadow:var(--shadow);max-width:88vw;text-align:center;opacity:1;transition:opacity .3s ease}',
-    '.toast.out{opacity:0}'
+    '.toast.out{opacity:0}',
+    '@media (max-width:640px){',
+    '  html,body{overflow-x:hidden}',
+    '  .quicknav{display:none}',
+    '  .mobile-nav-toggle{display:inline-flex}',
+    '  .day-grid,.dash-day-grid,.dash-fam-grid{grid-template-columns:1fr}',
+    '  .act-row{min-height:44px}',
+    '  .member-tab,.family-pill{padding:9px 14px}',
+    '}'
   ].join('\n');
 
   var styleTag = document.createElement('style');
@@ -209,6 +226,20 @@
   var activeMemberId = {};
   var addActivityForm = { dayId: null, type: 'excursion' };
   var apiPromise = null;
+  var mobileNavOpen = false;
+
+  function toggleMobileNav(){
+    mobileNavOpen = !mobileNavOpen;
+    try { document.body.style.overflow = mobileNavOpen ? 'hidden' : ''; } catch(e){}
+    render();
+  }
+
+  function closeMobileNav(){
+    if (!mobileNavOpen) return;
+    mobileNavOpen = false;
+    try { document.body.style.overflow = ''; } catch(e){}
+    render();
+  }
 
   function clone(x){ return JSON.parse(JSON.stringify(x)); }
 
@@ -645,20 +676,38 @@
   }
 
   // ---------- rendering ----------
+  var NAV_LINKS = [
+    { href: '#signup', label: 'Your family' },
+    { href: '#overview', label: 'Group overview' },
+    { href: '#explore', label: 'Activity details' },
+    { href: '#dashboard', label: 'Dashboard' },
+    { href: '#add-activity', label: 'Add activity' }
+  ];
+
   function buildHeader(){
     var famWithPicks = (state.families||[]).filter(function(f){
       return f.members.some(function(m){ var p = state.signups[m.id]; return p && Object.keys(p).length; });
     }).length;
+    var navLinksHtml = NAV_LINKS.map(function(l){ return '<a href="' + l.href + '">' + l.label + '</a>'; }).join('');
     return '<header class="topbar"><div class="topbar-inner">' +
       '<div class="brand"><span class="brand-kicker">MSC Seascape &middot; Sep 6&ndash;13, 2026</span><h1>Activity Sign-Up</h1></div>' +
-      '<div class="status-pill status-' + currentStatus.kind + '"><span class="dot"></span><span>' + escapeHtml(currentStatus.text) + '</span></div>' +
+      '<div class="topbar-actions"><div class="status-pill status-' + currentStatus.kind + '"><span class="dot"></span><span>' + escapeHtml(currentStatus.text) + '</span></div>' +
+      '<button type="button" class="mobile-nav-toggle" data-action="toggle-mobile-nav" aria-label="Open menu" aria-expanded="' + (mobileNavOpen ? 'true' : 'false') + '">&#9776;</button></div>' +
       '</div><div class="stats-row">' +
       '<div class="stat"><span class="stat-num">' + state.activities.length + '</span><span class="stat-label">activities listed</span></div>' +
       '<div class="stat"><span class="stat-num">' + famWithPicks + '/' + state.families.length + '</span><span class="stat-label">families have saved picks</span></div>' +
       '<div class="stat"><span class="stat-num">' + escapeHtml(formatWhen(state.meta.updatedAt)) + '</span><span class="stat-label">last updated</span></div>' +
       '</div>' +
-      '<nav class="quicknav"><a href="#signup">Your family</a><a href="#overview">Group overview</a><a href="#explore">Activity details</a><a href="#dashboard">Dashboard</a><a href="#add-activity">Add activity</a></nav>' +
+      '<nav class="quicknav">' + navLinksHtml + '</nav>' +
       '</header>';
+  }
+
+  function buildMobileNav(){
+    var navLinksHtml = NAV_LINKS.map(function(l){ return '<a href="' + l.href + '" data-action="close-mobile-nav">' + l.label + '</a>'; }).join('');
+    return '<div class="mobile-nav-backdrop' + (mobileNavOpen ? ' open' : '') + '" data-action="close-mobile-nav"></div>' +
+      '<nav class="mobile-nav-drawer' + (mobileNavOpen ? ' open' : '') + '" aria-hidden="' + (mobileNavOpen ? 'false' : 'true') + '">' +
+      '<button type="button" class="mobile-nav-close" data-action="close-mobile-nav" aria-label="Close menu">&#10005;</button>' +
+      navLinksHtml + '</nav>';
   }
 
   function buildMemberDayCard(familyId, member, draft, day){
@@ -918,7 +967,7 @@
       rootEl.innerHTML = '<div class="page"><p class="hint">Something went wrong loading this page. Refresh, or ask Thameem to check the link.</p></div>';
       return;
     }
-    rootEl.innerHTML = '<div class="page">' + buildHeader() + '<main>' + buildFamilySection() + buildOverviewSection() + buildExploreSection() + buildDashboardSection() + buildAddActivitySection() + '</main>' + buildFooter() + '</div>';
+    rootEl.innerHTML = '<div class="page">' + buildHeader() + buildMobileNav() + '<main>' + buildFamilySection() + buildOverviewSection() + buildExploreSection() + buildDashboardSection() + buildAddActivitySection() + '</main>' + buildFooter() + '</div>';
   }
 
   // ---------- event delegation ----------
@@ -934,6 +983,8 @@
     else if (action === 'save-family') saveFamily(el.getAttribute('data-family-id'));
     else if (action === 'discard-family') discardFamily(el.getAttribute('data-family-id'));
     else if (action === 'add-activity') submitAddActivity();
+    else if (action === 'toggle-mobile-nav') toggleMobileNav();
+    else if (action === 'close-mobile-nav') closeMobileNav();
   }
 
   function onRootChange(e){
@@ -978,6 +1029,7 @@
       e.preventDefault();
       t.blur();
     }
+    if (e.key === 'Escape' && mobileNavOpen) closeMobileNav();
   }
 
   function bindEvents(){
