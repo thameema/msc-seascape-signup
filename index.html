@@ -669,6 +669,7 @@
     newFamilies.push(fam);
     myFamilyId = id;
     try { localStorage.setItem(MYFAM_KEY, id); } catch(e){}
+    applyFamilyGate(id);
     var updatedAt = new Date().toISOString();
     state.families = newFamilies;
     state.meta = state.meta || {}; state.meta.updatedAt = updatedAt;
