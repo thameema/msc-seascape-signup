@@ -108,6 +108,10 @@
     '.family-card{border-top:1px solid var(--border-soft);padding-top:16px}',
     '.banner{padding:10px 12px;border-radius:8px;font-size:0.86rem;margin-bottom:14px}',
     '.banner-readonly{background:var(--pop-tint);color:var(--ink)}',
+    '.pin-gate{max-width:360px}',
+    '.pin-gate .field{margin-bottom:12px}',
+    '.pin-gate input{font-size:1.1rem;letter-spacing:0.15em;text-align:center}',
+    '.pin-error{color:var(--danger);font-size:0.86rem;margin:0 0 12px}',
     '.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}',
     '.field label{font-size:0.74rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.04em}',
     '.field .optional{text-transform:none;letter-spacing:0}',
@@ -224,6 +228,7 @@
   }
 
   var FIREBASE_URL = 'https://msc-seascape-signup-default-rtdb.firebaseio.com';
+  var PINAUTH_KEY = 'msc-signup-pinauth-v1';
   var state = readPublishedState();
   var readOnly = false;
   var readOnlyReason = '';
@@ -234,6 +239,44 @@
   var addActivityForm = { dayId: null, type: 'excursion' };
   var apiPromise = null;
   var mobileNavOpen = false;
+
+  // ---------- PIN auth (family-scoped write gate) ----------
+  var authedFamilies = {}; // { familyId: sha256hex } - families THIS browser has unlocked
+  try { authedFamilies = JSON.parse(localStorage.getItem(PINAUTH_KEY) || '{}'); } catch(e){ authedFamilies = {}; }
+  function saveAuthedFamilies(){ try { localStorage.setItem(PINAUTH_KEY, JSON.stringify(authedFamilies)); } catch(e){} }
+
+  var pinSetCache = {};
+  var pinGate = { familyId: null, mode: null, error: '', busy: false };
+
+  function hasCrypto(){ return !!(window.crypto && window.crypto.subtle && window.isSecureContext !== false); }
+
+  function sha256Hex(str){
+    var enc = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', enc).then(function(buf){
+      var bytes = new Uint8Array(buf);
+      var hex = '';
+      for (var i=0;i<bytes.length;i++){ var h = bytes[i].toString(16); hex += (h.length===1?'0':'')+h; }
+      return hex;
+    });
+  }
+
+  function firebasePatch(updates){
+    return fetch(FIREBASE_URL + '/.json', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    }).then(function(res){
+      if (!res.ok) { var e = new Error('HTTP ' + res.status); e.status = res.status; throw e; }
+      return res;
+    });
+  }
+
+  function fetchPinSet(familyId){
+    return fetch(FIREBASE_URL + '/pinSet/' + encodeURIComponent(familyId) + '.json', { cache: 'no-store' })
+      .then(function(res){ return res.ok ? res.json() : null; })
+      .then(function(val){ pinSetCache[familyId] = !!val; return !!val; })
+      .catch(function(){ return !!pinSetCache[familyId]; });
+  }
 
   function toggleMobileNav(){
     mobileNavOpen = !mobileNavOpen;
@@ -523,9 +566,83 @@
   function selectFamily(familyId){
     myFamilyId = familyId;
     try { localStorage.setItem(MYFAM_KEY, familyId); } catch(e){}
-    var d = getDraftFamily(familyId);
-    if (!activeMemberId[familyId]) activeMemberId[familyId] = d.members[0] && d.members[0].id;
+    if (authedFamilies[familyId]) {
+      pinGate = { familyId: null, mode: null, error: '', busy: false };
+      var d = getDraftFamily(familyId);
+      if (!activeMemberId[familyId]) activeMemberId[familyId] = d.members[0] && d.members[0].id;
+      render();
+      return;
+    }
+    pinGate = { familyId: familyId, mode: 'checking', error: '', busy: true };
     render();
+    fetchPinSet(familyId).then(function(isSet){
+      if (myFamilyId !== familyId) return; // user switched away while we were checking
+      pinGate = { familyId: familyId, mode: isSet ? 'enter' : 'setup', error: '', busy: false };
+      render();
+    });
+  }
+
+  function submitPinSetup(familyId){
+    var v1El = document.querySelector('[data-field="pin-setup"][data-family-id="'+familyId+'"]');
+    var v2El = document.querySelector('[data-field="pin-setup-confirm"][data-family-id="'+familyId+'"]');
+    var v1 = (v1El && v1El.value || '').trim();
+    var v2 = (v2El && v2El.value || '').trim();
+    if (!/^\d{4}$/.test(v1)) { pinGate.error = 'Enter exactly 4 digits.'; render(); return; }
+    if (v1 !== v2) { pinGate.error = "PINs don't match — try again."; render(); return; }
+    if (!hasCrypto()) { pinGate.error = "This browser can't set a PIN securely. Open this link in Chrome or Safari instead of an in-app browser."; render(); return; }
+    pinGate.busy = true; pinGate.error = ''; render();
+    sha256Hex(familyId + ':' + v1).then(function(hash){
+      var updates = {};
+      updates['pins/' + familyId] = hash;
+      updates['pinSet/' + familyId] = true;
+      updates['_proof/' + familyId] = hash;
+      return firebasePatch(updates).then(function(){
+        authedFamilies[familyId] = hash;
+        saveAuthedFamilies();
+        pinSetCache[familyId] = true;
+        pinGate = { familyId: null, mode: null, error: '', busy: false };
+        toast("PIN set. Share it with your family directly — there's no reset if it's lost, so keep it somewhere safe.");
+        render();
+        var clearU = {}; clearU['_proof/' + familyId] = null;
+        firebasePatch(clearU).catch(function(){});
+      });
+    }).catch(function(err){
+      pinGate.busy = false;
+      if (err && (err.status === 401 || err.status === 403)) {
+        pinGate.error = 'Someone just set a PIN for this family. Refresh and enter the PIN they set instead.';
+        pinGate.mode = 'enter';
+        pinSetCache[familyId] = true;
+      } else {
+        pinGate.error = 'Could not set the PIN — check your connection and try again.';
+      }
+      render();
+    });
+  }
+
+  function submitPinEnter(familyId){
+    var vEl = document.querySelector('[data-field="pin-enter"][data-family-id="'+familyId+'"]');
+    var v = (vEl && vEl.value || '').trim();
+    if (!/^\d{4}$/.test(v)) { pinGate.error = 'Enter the 4-digit PIN.'; render(); return; }
+    if (!hasCrypto()) { pinGate.error = "This browser can't verify a PIN securely. Open this link in Chrome or Safari instead of an in-app browser."; render(); return; }
+    pinGate.busy = true; pinGate.error = ''; render();
+    sha256Hex(familyId + ':' + v).then(function(hash){
+      var updates = {};
+      updates['_proof/' + familyId] = hash;
+      updates['familyHeartbeat/' + familyId] = Date.now();
+      return firebasePatch(updates).then(function(){
+        authedFamilies[familyId] = hash;
+        saveAuthedFamilies();
+        pinGate = { familyId: null, mode: null, error: '', busy: false };
+        toast('Welcome back — you can edit your picks now.');
+        render();
+        var clearU = {}; clearU['_proof/' + familyId] = null;
+        firebasePatch(clearU).catch(function(){});
+      });
+    }).catch(function(err){
+      pinGate.busy = false;
+      pinGate.error = "Wrong PIN. There's no self-service reset — contact Thameem directly if you're stuck.";
+      render();
+    });
   }
 
   function selectMember(familyId, memberId){
@@ -535,17 +652,28 @@
 
   function addFamily(){
     if (readOnly) return;
-    var newState = clone(state);
+    var newFamilies = clone(state.families || []);
     var id = 'f-' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
     var m1 = id+'-p1', m2 = id+'-p2', m3 = id+'-c1';
-    var fam = { id: id, name: 'New family ' + (newState.families.length+1), members: [
+    var fam = { id: id, name: 'New family ' + (newFamilies.length+1), members: [
       { id:m1, name:'Parent 1' }, { id:m2, name:'Parent 2' }, { id:m3, name:'Child 1' }
     ]};
-    newState.families.push(fam);
-    newState.meta.updatedAt = new Date().toISOString();
+    newFamilies.push(fam);
     myFamilyId = id;
     try { localStorage.setItem(MYFAM_KEY, id); } catch(e){}
-    doPublish(newState, { kind:'add-family', family: fam, retried:false, ts: Date.now() });
+    var updatedAt = new Date().toISOString();
+    state.families = newFamilies;
+    state.meta = state.meta || {}; state.meta.updatedAt = updatedAt;
+    render();
+    setStatus('saving', 'Saving…'); render();
+    var updates = { 'state/families': newFamilies, 'state/meta/updatedAt': updatedAt };
+    firebasePatch(updates).then(function(){
+      setStatus('saved', 'Saved.'); render();
+      toast('Family added.');
+    }).catch(function(){
+      setStatus('error', 'Could not save just now — your changes are kept here, try again.'); render();
+      toast('Could not save just now — try again.');
+    });
   }
 
   function addMember(familyId){
@@ -598,33 +726,74 @@
     if (readOnly) return;
     var draft = drafts[familyId];
     if (!draft) return;
-    var newState = clone(state);
+    var proofHash = authedFamilies[familyId];
+    if (!proofHash) { toast("Enter your family's PIN first."); selectFamily(familyId); return; }
+
+    var newFamilies = clone(state.families || []);
     var draftFamilyOnly = {
       id: draft.id,
       name: (draft.name || '').trim() || 'Family',
       members: draft.members.map(function(m){ return { id:m.id, name:(m.name||'').trim() || 'Member' }; })
     };
     var idx = -1;
-    (newState.families||[]).forEach(function(f,i){ if (f.id === familyId) idx = i; });
-    if (idx === -1) newState.families.push(draftFamilyOnly); else newState.families[idx] = draftFamilyOnly;
+    newFamilies.forEach(function(f,i){ if (f.id === familyId) idx = i; });
+    if (idx === -1) newFamilies.push(draftFamilyOnly); else newFamilies[idx] = draftFamilyOnly;
 
     var prevFamily = findFamily(state, familyId);
     var keepIds = draftFamilyOnly.members.map(function(m){ return m.id; });
+    var removedIds = [];
     (prevFamily ? prevFamily.members : []).forEach(function(m){
-      if (keepIds.indexOf(m.id) === -1) delete newState.signups[m.id];
+      if (keepIds.indexOf(m.id) === -1) removedIds.push(m.id);
     });
+
+    var newSignups = clone(state.signups || {});
     var stashSignups = {};
     keepIds.forEach(function(mid){
       var picks = clone(draft.signups[mid] || {});
-      if (Object.keys(picks).length) newState.signups[mid] = picks; else delete newState.signups[mid];
+      if (Object.keys(picks).length) newSignups[mid] = picks; else delete newSignups[mid];
       stashSignups[mid] = picks;
     });
-    newState.meta.updatedAt = new Date().toISOString();
+    removedIds.forEach(function(mid){ delete newSignups[mid]; });
 
+    var updates = {};
+    updates['state/families'] = newFamilies;
+    keepIds.forEach(function(mid){
+      updates['state/signups/' + mid] = Object.keys(stashSignups[mid]).length ? stashSignups[mid] : null;
+      updates['memberFamily/' + mid] = familyId;
+    });
+    removedIds.forEach(function(mid){ updates['state/signups/' + mid] = null; });
+    updates['_proof/' + familyId] = proofHash;
+    var updatedAt = new Date().toISOString();
+    updates['state/meta/updatedAt'] = updatedAt;
+
+    // optimistic local update
+    state.families = newFamilies;
+    state.signups = newSignups;
+    state.meta = state.meta || {}; state.meta.updatedAt = updatedAt;
     delete drafts[familyId];
     saveDraftsToLocal();
+    setStatus('saving', 'Saving…');
+    render();
 
-    doPublish(newState, { kind:'save-family', familyId: familyId, family: draftFamilyOnly, signups: stashSignups, retried:false, ts: Date.now() });
+    firebasePatch(updates).then(function(){
+      setStatus('saved', 'Saved.');
+      render();
+      toast('Saved — your family’s picks are in.');
+      var clearU = {}; clearU['_proof/' + familyId] = null;
+      firebasePatch(clearU).catch(function(){});
+    }).catch(function(err){
+      drafts[familyId] = draft;
+      saveDraftsToLocal();
+      setStatus('error', 'Could not save just now — your changes are kept here, try again.');
+      render();
+      if (err && (err.status === 401 || err.status === 403)) {
+        toast('Save blocked — your PIN session may have expired. Try selecting your family again.');
+        delete authedFamilies[familyId];
+        saveAuthedFamilies();
+      } else {
+        toast('Could not save just now — try again.');
+      }
+    });
   }
 
   function submitAddActivity(){
@@ -652,17 +821,27 @@
     var youtube = safeUrl(ytRaw);
     if (ytRaw && !youtube) { toast('Video link must start with https:// — fix it and try again.'); if (ytInput) ytInput.focus(); return; }
 
-    var newState = clone(state);
+    var newActivities = clone(state.activities || []);
     var activityId = 'act-' + slugify(name) + '-' + Math.random().toString(36).slice(2,5);
     var activity = { id: activityId, dayId: dayId, type: type, name: name, note: note, price: price, link: link, youtube: youtube, status: '' };
-    newState.activities.push(activity);
-    newState.meta.updatedAt = new Date().toISOString();
+    newActivities.push(activity);
 
     addActivityForm.dayId = dayId;
     addActivityForm.type = type;
 
-    doPublish(newState, { kind:'add-activity', activity: activity, retried:false, ts: Date.now() });
-    toast('Added "' + name + '".');
+    var updatedAt = new Date().toISOString();
+    state.activities = newActivities;
+    state.meta = state.meta || {}; state.meta.updatedAt = updatedAt;
+    render();
+    setStatus('saving', 'Saving…'); render();
+    var updates = { 'state/activities': newActivities, 'state/meta/updatedAt': updatedAt };
+    firebasePatch(updates).then(function(){
+      setStatus('saved', 'Saved.'); render();
+      toast('Activity added for everyone.');
+    }).catch(function(){
+      setStatus('error', 'Could not save just now — your changes are kept here, try again.'); render();
+      toast('Could not add "' + name + '" — try again.');
+    });
     if (nameInput) nameInput.value = '';
     if (priceInput) priceInput.value = '';
     if (linkInput) linkInput.value = '';
@@ -759,7 +938,34 @@
       '<button type="button" class="btn btn-primary" data-action="save-family" data-family-id="' + familyId + '" ' + (dirty ? '' : 'disabled') + '>Save my family’s picks</button></div></div>';
   }
 
+  function buildPinGateCard(familyId){
+    var f = findFamily(state, familyId);
+    var name = f ? f.name : 'this family';
+    if (pinGate.mode === 'checking') {
+      return '<div class="family-card"><p class="hint">Checking…</p></div>';
+    }
+    var errorHtml = pinGate.error ? '<p class="pin-error">' + escapeHtml(pinGate.error) + '</p>' : '';
+    var busy = pinGate.busy;
+    if (pinGate.mode === 'setup') {
+      return '<div class="family-card"><div class="pin-gate">' +
+        '<p class="hint">First time for ' + escapeHtml(name) + '? Set a 4-digit PIN your whole family can use to edit picks. Share it with them directly (WhatsApp, in person) — there is no self-service reset if it is lost, so pick something memorable.</p>' +
+        '<div class="field"><label>4-digit PIN</label><input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-field="pin-setup" data-family-id="' + familyId + '" ' + (busy?'disabled':'') + ' /></div>' +
+        '<div class="field"><label>Confirm PIN</label><input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-field="pin-setup-confirm" data-family-id="' + familyId + '" ' + (busy?'disabled':'') + ' /></div>' +
+        errorHtml +
+        '<button type="button" class="btn btn-primary" data-action="submit-pin-setup" data-family-id="' + familyId + '" ' + (busy?'disabled':'') + '>' + (busy?'Setting…':'Set PIN & continue') + '</button>' +
+        '</div></div>';
+    }
+    return '<div class="family-card"><div class="pin-gate">' +
+      '<p class="hint">' + escapeHtml(name) + ' already has a PIN set. Enter it to edit your family\'s picks — other families stay visible read-only either way.</p>' +
+      '<div class="field"><label>4-digit PIN</label><input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-field="pin-enter" data-family-id="' + familyId + '" ' + (busy?'disabled':'') + ' /></div>' +
+      errorHtml +
+      '<button type="button" class="btn btn-primary" data-action="submit-pin-enter" data-family-id="' + familyId + '" ' + (busy?'disabled':'') + '>' + (busy?'Checking…':'Unlock') + '</button>' +
+      '<p class="hint fine">Wrong PIN? There is no self-service reset — contact Thameem directly.</p>' +
+      '</div></div>';
+  }
+
   function buildFamilyCard(familyId){
+    if (pinGate.familyId === familyId) return buildPinGateCard(familyId);
     var draft = getDraftFamily(familyId);
     var dirty = isDirty(familyId);
     var activeId = activeMemberId[familyId] || (draft.members[0] && draft.members[0].id);
@@ -992,6 +1198,8 @@
     else if (action === 'add-activity') submitAddActivity();
     else if (action === 'toggle-mobile-nav') toggleMobileNav();
     else if (action === 'close-mobile-nav') closeMobileNav();
+    else if (action === 'submit-pin-setup') submitPinSetup(el.getAttribute('data-family-id'));
+    else if (action === 'submit-pin-enter') submitPinEnter(el.getAttribute('data-family-id'));
   }
 
   function onRootChange(e){
@@ -1035,6 +1243,14 @@
     if (t && t.matches && e.key === 'Enter' && (t.matches('[data-field="family-name"]') || t.matches('[data-field="member-name"]') || t.matches('[data-field="pick-note"]'))) {
       e.preventDefault();
       t.blur();
+    }
+    if (t && t.matches && e.key === 'Enter' && (t.matches('[data-field="pin-setup"]') || t.matches('[data-field="pin-setup-confirm"]'))) {
+      e.preventDefault();
+      submitPinSetup(t.getAttribute('data-family-id'));
+    }
+    if (t && t.matches && e.key === 'Enter' && t.matches('[data-field="pin-enter"]')) {
+      e.preventDefault();
+      submitPinEnter(t.getAttribute('data-family-id'));
     }
     if (e.key === 'Escape' && mobileNavOpen) closeMobileNav();
   }
