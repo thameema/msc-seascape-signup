@@ -590,6 +590,27 @@
     render();
   }
 
+  // _proof/{familyId} is a {h, t} pair: h is the candidate hash, t must be a genuine
+  // Firebase server timestamp (rules reject client-supplied literals) and expires after
+  // 2 minutes server-side. Because a single multi-path PATCH evaluates every path's rule
+  // against the PRE-update tree (verified empirically against this project's rules — a
+  // rule cannot see a sibling value being set in the same request), setting the proof and
+  // then consuming it (via familyHeartbeat or a signups write) must be two SEPARATE
+  // sequential requests, not one combined one.
+  function setProof(familyId, hash){
+    var updates = {};
+    updates['_proof/' + familyId + '/h'] = hash;
+    updates['_proof/' + familyId + '/t'] = { '.sv': 'timestamp' };
+    return firebasePatch(updates);
+  }
+
+  function clearProof(familyId){
+    var updates = {};
+    updates['_proof/' + familyId + '/h'] = null;
+    updates['_proof/' + familyId + '/t'] = null;
+    return firebasePatch(updates).catch(function(){});
+  }
+
   function submitPinSetup(familyId){
     var v1El = document.querySelector('[data-field="pin-setup"][data-family-id="'+familyId+'"]');
     var v2El = document.querySelector('[data-field="pin-setup-confirm"][data-family-id="'+familyId+'"]');
@@ -600,10 +621,13 @@
     if (!hasCrypto()) { pinGate.error = "This browser can't set a PIN securely. Open this link in Chrome or Safari instead of an in-app browser."; render(); return; }
     pinGate.busy = true; pinGate.error = ''; render();
     sha256Hex(familyId + ':' + v1).then(function(hash){
+      // pins/pinSet/_proof here are all self-contained writes (no cross-path reference),
+      // so a single combined call is fine — this one doesn't need the sequential pattern.
       var updates = {};
       updates['pins/' + familyId] = hash;
       updates['pinSet/' + familyId] = true;
-      updates['_proof/' + familyId] = hash;
+      updates['_proof/' + familyId + '/h'] = hash;
+      updates['_proof/' + familyId + '/t'] = { '.sv': 'timestamp' };
       return firebasePatch(updates).then(function(){
         authedFamilies[familyId] = hash;
         saveAuthedFamilies();
@@ -611,8 +635,7 @@
         pinGate = { familyId: null, mode: null, error: '', busy: false };
         toast("PIN set. Share it with your family directly — there's no reset if it's lost, so keep it somewhere safe.");
         render();
-        var clearU = {}; clearU['_proof/' + familyId] = null;
-        firebasePatch(clearU).catch(function(){});
+        clearProof(familyId);
       });
     }).catch(function(err){
       pinGate.busy = false;
@@ -633,23 +656,26 @@
     if (!/^\d{4}$/.test(v)) { pinGate.error = 'Enter the 4-digit PIN.'; render(); return; }
     if (!hasCrypto()) { pinGate.error = "This browser can't verify a PIN securely. Open this link in Chrome or Safari instead of an in-app browser."; render(); return; }
     pinGate.busy = true; pinGate.error = ''; render();
-    sha256Hex(familyId + ':' + v).then(function(hash){
+    var hash;
+    sha256Hex(familyId + ':' + v).then(function(h){
+      hash = h;
+      return setProof(familyId, hash);
+    }).then(function(){
       var updates = {};
-      updates['_proof/' + familyId] = hash;
-      updates['familyHeartbeat/' + familyId] = Date.now();
-      return firebasePatch(updates).then(function(){
-        authedFamilies[familyId] = hash;
-        saveAuthedFamilies();
-        pinGate = { familyId: null, mode: null, error: '', busy: false };
-        toast('Welcome back — you can edit your picks now.');
-        render();
-        var clearU = {}; clearU['_proof/' + familyId] = null;
-        firebasePatch(clearU).catch(function(){});
-      });
+      updates['familyHeartbeat/' + familyId] = { '.sv': 'timestamp' };
+      return firebasePatch(updates);
+    }).then(function(){
+      authedFamilies[familyId] = hash;
+      saveAuthedFamilies();
+      pinGate = { familyId: null, mode: null, error: '', busy: false };
+      toast('Welcome back — you can edit your picks now.');
+      render();
+      clearProof(familyId);
     }).catch(function(err){
       pinGate.busy = false;
       pinGate.error = "Wrong PIN. There's no self-service reset — contact Thameem directly if you're stuck.";
       render();
+      clearProof(familyId);
     });
   }
 
@@ -771,7 +797,6 @@
       updates['memberFamily/' + mid] = familyId;
     });
     removedIds.forEach(function(mid){ updates['state/signups/' + mid] = null; });
-    updates['_proof/' + familyId] = proofHash;
     var updatedAt = new Date().toISOString();
     updates['state/meta/updatedAt'] = updatedAt;
 
@@ -784,17 +809,21 @@
     setStatus('saving', 'Saving…');
     render();
 
-    firebasePatch(updates).then(function(){
+    // Proof must be set in its own request BEFORE the gated write — a rule cannot see a
+    // sibling value being set in the same multi-path update (verified empirically).
+    setProof(familyId, proofHash).then(function(){
+      return firebasePatch(updates);
+    }).then(function(){
       setStatus('saved', 'Saved.');
       render();
       toast('Saved — your family’s picks are in.');
-      var clearU = {}; clearU['_proof/' + familyId] = null;
-      firebasePatch(clearU).catch(function(){});
+      clearProof(familyId);
     }).catch(function(err){
       drafts[familyId] = draft;
       saveDraftsToLocal();
       setStatus('error', 'Could not save just now — your changes are kept here, try again.');
       render();
+      clearProof(familyId);
       if (err && (err.status === 401 || err.status === 403)) {
         toast('Save blocked — your PIN session may have expired. Try selecting your family again.');
         delete authedFamilies[familyId];
