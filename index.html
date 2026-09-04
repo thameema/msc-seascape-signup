@@ -132,7 +132,12 @@
     '.chip-empty{color:var(--ink-faint);background:transparent;border:1px dashed var(--border)}',
     '.video-preview{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:8px;background:linear-gradient(135deg,var(--ink) 0%,var(--accent-strong) 150%);color:#fff;font-size:0.72rem;text-decoration:none;font-weight:600}',
     '.video-preview .play-badge{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;flex-shrink:0}',
+    '.explore-activity{padding:10px 6px}',
+    '.explore-activity + .explore-activity{border-top:1px solid var(--border-soft)}',
+    '.explore-activity-name{font-size:0.94rem;color:var(--ink);font-weight:600;margin-bottom:6px}',
+    '.explore-activity .ov-chips-row{margin-bottom:0}',
     '.save-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border-soft);flex-wrap:wrap}',
+    '.save-row-top{margin-top:0;margin-bottom:16px;padding-top:0;padding-bottom:14px;border-top:none;border-bottom:1px solid var(--border-soft)}',
     '.dirty-note{font-size:0.82rem;color:var(--ink-soft)}',
     '.save-buttons{display:flex;gap:8px}',
     '.btn{font:inherit;font-size:0.92rem;padding:10px 16px;border-radius:8px;cursor:pointer;border:1px solid transparent}',
@@ -386,10 +391,16 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       setStatus('saved', 'Saved.');
       render();
+      var msg = 'Saved.';
+      if (stash && stash.kind === 'save-family') msg = 'Saved — your family’s picks are in.';
+      else if (stash && stash.kind === 'add-activity') msg = 'Activity added for everyone.';
+      else if (stash && stash.kind === 'add-family') msg = 'Family added.';
+      toast(msg);
     }).catch(function(err){
       readOnly = false;
       setStatus('error', 'Could not save just now — your changes are kept here, try again.');
       render();
+      toast('Could not save just now — try again.');
     });
   }
 
@@ -646,7 +657,7 @@
       '<div class="stat"><span class="stat-num">' + famWithPicks + '/' + state.families.length + '</span><span class="stat-label">families have saved picks</span></div>' +
       '<div class="stat"><span class="stat-num">' + escapeHtml(formatWhen(state.meta.updatedAt)) + '</span><span class="stat-label">last updated</span></div>' +
       '</div>' +
-      '<nav class="quicknav"><a href="#signup">Your family</a><a href="#overview">Group overview</a><a href="#dashboard">Dashboard</a><a href="#add-activity">Add activity</a></nav>' +
+      '<nav class="quicknav"><a href="#signup">Your family</a><a href="#overview">Group overview</a><a href="#explore">Activity details</a><a href="#dashboard">Dashboard</a><a href="#add-activity">Add activity</a></nav>' +
       '</header>';
   }
 
@@ -686,6 +697,12 @@
     return '<div class="member-editor">' + header + '<div class="day-grid">' + cards + '</div></div>';
   }
 
+  function buildSaveRow(familyId, dirty, variant){
+    return '<div class="save-row' + (variant === 'top' ? ' save-row-top' : '') + '"><span class="dirty-note">' + (dirty ? 'You have unsaved changes.' : 'Everything here is saved.') + '</span>' +
+      '<div class="save-buttons">' + (dirty ? '<button type="button" class="btn btn-ghost" data-action="discard-family" data-family-id="' + familyId + '">Discard</button>' : '') +
+      '<button type="button" class="btn btn-primary" data-action="save-family" data-family-id="' + familyId + '" ' + (dirty ? '' : 'disabled') + '>Save my family’s picks</button></div></div>';
+  }
+
   function buildFamilyCard(familyId){
     var draft = getDraftFamily(familyId);
     var dirty = isDirty(familyId);
@@ -711,11 +728,10 @@
     draft.members.forEach(function(m){ if (m.id === activeId) activeMember = m; });
     var memberEditor = activeMember ? buildMemberEditor(familyId, activeMember, draft) : '<p class="hint">Add a family member to get started.</p>';
 
-    var saveControls = readOnly ? '' : '<div class="save-row"><span class="dirty-note">' + (dirty ? 'You have unsaved changes.' : 'Everything here is saved.') + '</span>' +
-      '<div class="save-buttons">' + (dirty ? '<button type="button" class="btn btn-ghost" data-action="discard-family" data-family-id="' + familyId + '">Discard</button>' : '') +
-      '<button type="button" class="btn btn-primary" data-action="save-family" data-family-id="' + familyId + '" ' + (dirty ? '' : 'disabled') + '>Save my family’s picks</button></div></div>';
+    var saveControlsTop = readOnly ? '' : buildSaveRow(familyId, dirty, 'top');
+    var saveControls = readOnly ? '' : buildSaveRow(familyId, dirty, 'bottom');
 
-    return '<div class="family-card">' + readonlyBanner + nameField + '<div class="member-tabs">' + tabs + addMemberBtn + '</div>' + memberEditor + saveControls + '</div>';
+    return '<div class="family-card">' + readonlyBanner + saveControlsTop + nameField + '<div class="member-tabs">' + tabs + addMemberBtn + '</div>' + memberEditor + saveControls + '</div>';
   }
 
   function buildFamilySection(){
@@ -764,6 +780,30 @@
     var cards = sortedDays(state).map(buildOverviewDayCard).join('');
     return '<section class="panel overview-panel" id="overview"><div class="panel-head"><span class="eyebrow">What the group is doing</span><h2>Group overview, by day</h2>' +
       '<p class="lede">Saved picks only &mdash; unsaved checkboxes above aren’t counted here until Save is tapped. Tap an activity to see who&#39;s signed up.</p></div>' +
+      '<div class="day-grid">' + cards + '</div></section>';
+  }
+
+  // ---------- explore / activity details (pure browse, no family needed) ----------
+  function buildExploreDayCard(day){
+    var acts = activitiesForDay(state, day.id);
+    if (!acts.length) return '';
+    var rows = acts.map(function(a){
+      return '<div class="explore-activity"><div class="explore-activity-name">' + escapeHtml(a.name) + '</div>' +
+        '<div class="ov-chips-row">' + buildActivityMeta(a) + '</div>' +
+        (a.note ? '<p class="hint" style="margin:6px 0 0">' + escapeHtml(a.note) + '</p>' : '') +
+        '</div>';
+    }).join('');
+    return '<div class="day-card"><div class="day-card-head">' +
+      (day.label ? '<span class="day-label">' + escapeHtml(day.label) + '</span>' : '') +
+      '<div class="day-title-row"><span class="day-title">' + escapeHtml(day.title) + '</span>' + (day.time ? '<span class="day-time">' + escapeHtml(day.time) + '</span>' : '') + '</div>' +
+      (day.note ? '<div class="day-note">' + escapeHtml(day.note) + '</div>' : '') +
+      '</div>' + rows + '</div>';
+  }
+
+  function buildExploreSection(){
+    var cards = sortedDays(state).map(buildExploreDayCard).join('');
+    return '<section class="panel explore-panel" id="explore"><div class="panel-head"><span class="eyebrow">Browse & watch</span><h2>Activity Details</h2>' +
+      '<p class="lede">Every activity on the trip &mdash; description, price, links, and videos. Just for browsing, no need to pick a family first.</p></div>' +
       '<div class="day-grid">' + cards + '</div></section>';
   }
 
@@ -878,7 +918,7 @@
       rootEl.innerHTML = '<div class="page"><p class="hint">Something went wrong loading this page. Refresh, or ask Thameem to check the link.</p></div>';
       return;
     }
-    rootEl.innerHTML = '<div class="page">' + buildHeader() + '<main>' + buildFamilySection() + buildOverviewSection() + buildDashboardSection() + buildAddActivitySection() + '</main>' + buildFooter() + '</div>';
+    rootEl.innerHTML = '<div class="page">' + buildHeader() + '<main>' + buildFamilySection() + buildOverviewSection() + buildExploreSection() + buildDashboardSection() + buildAddActivitySection() + '</main>' + buildFooter() + '</div>';
   }
 
   // ---------- event delegation ----------
