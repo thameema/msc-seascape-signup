@@ -156,6 +156,18 @@
     '.explore-activity + .explore-activity{border-top:1px solid var(--border-soft)}',
     '.explore-activity-name{font-size:0.94rem;color:var(--ink);font-weight:600;margin-bottom:6px}',
     '.explore-activity .ov-chips-row{margin-bottom:0}',
+    '.pg-card{padding-bottom:6px}',
+    '.pg-sub{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--accent-strong);margin:14px 0 4px}',
+    '.pg-sub.first{margin-top:2px}',
+    '.pg-body{font-size:0.88rem;color:var(--ink);line-height:1.55;margin:0 0 4px}',
+    '.pg-notfound{margin-top:14px;padding:10px 12px;border-radius:8px;background:var(--pop-tint);color:var(--ink)}',
+    '.pg-notfound-title{font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--pop);margin-bottom:4px}',
+    '.pg-notfound ul{margin:0;padding-left:18px;font-size:0.84rem}',
+    '.pg-sources{margin-top:14px;padding-top:10px;border-top:1px solid var(--border-soft)}',
+    '.pg-sources-title{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-faint);margin-bottom:6px}',
+    '.pg-sources ol{margin:0;padding-left:18px;font-size:0.78rem;color:var(--ink-soft);display:flex;flex-direction:column;gap:3px}',
+    '.pg-sources a{color:var(--accent-strong)}',
+    '.pg-disclaimer{font-size:0.84rem;color:var(--ink-soft);background:var(--surface-2);border-radius:8px;padding:10px 12px;margin-bottom:16px}',
     '.save-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border-soft);flex-wrap:wrap}',
     '.save-row-top{margin-top:0;margin-bottom:16px;padding-top:0;padding-bottom:14px;border-top:none;border-bottom:1px solid var(--border-soft)}',
     '.dirty-note{font-size:0.82rem;color:var(--ink-soft)}',
@@ -904,6 +916,7 @@
     { href: '#signup', label: 'Your family' },
     { href: '#overview', label: 'Group overview' },
     { href: '#explore', label: 'Activity details' },
+    { href: '#port-guide', label: 'Port Guide' },
     { href: '#dashboard', label: 'Dashboard' },
     { href: '#add-activity', label: 'Add activity' }
   ];
@@ -1107,6 +1120,133 @@
       '<div class="day-grid">' + cards + '</div></section>';
   }
 
+  // ---------- port guide (real cruiser research, static editorial content) ----------
+  // Sourced from actual Reddit / Cruise Critic / TripAdvisor threads (links below each port).
+  // Anything not confirmed by a real thread is listed under "Not confirmed" rather than guessed.
+  var PORT_GUIDE = [
+    {
+      dayId: 'day-costamaya',
+      sections: [
+        { title: 'Getting off the ship', body: "Direct pier dock — no tender boat, you just walk off. No source (MSC-specific or otherwise) gives an exact time the gangway opens at this port; check the ship's app / daily program that morning rather than assuming a time." },
+        { title: 'All-aboard / return cutoff', body: "Not confirmed for MSC at this port — go by your boarding card / the ship's app, not a number from another cruise line. The bigger real risk reported by past cruisers isn't the ship leaving early, it's getting stuck negotiating a taxi right before boarding: one traveler was charged $100 for what should've been an $8 ride specifically because the driver knew they were rushing. Since this is a 10-hour call (8am–6pm), build in a real buffer rather than cutting it close." },
+        { title: 'Distance to town & beach clubs', body: "The pier is roughly 1.5–2 miles from Mahahual town / the Malecon. Real cruisers who tried walking it took 30–45 minutes, and the direct path has reportedly been blocked off for a while, forcing a longer detour — one person turned back after finding it blocked. Nearby beach clubs (YaYa Beach Club, Maya Chan, and others) are a much shorter ~10-minute taxi ride south of the port. For a family group in September heat, plan on a short taxi, not a walk." },
+        { title: 'Getting to town/beach independently', body: "No shuttle or bus system — taxi only, and the stand is a short walk through the port's shopping area (multiple cruisers describe it as a maze and say to keep left / follow the shop row to find the exit). Reported prices vary a lot: one Seascape passenger paid a flat $4; a local homeowner says cruise-passenger taxi rates run closer to $10 for a 5-minute ride, and pricing right at the port gate is worse than a short walk down the road. Agree on the price out loud before getting in, carry cash (pesos or small USD bills — many drivers don't take cards), and don't do this negotiation while rushing back to the ship. At least one beach club (Maya Chan) is reported to run its own round-trip transport and actively gets guests back on time — worth asking about when booking, since it removes the return-taxi risk for a group this size." },
+        { title: 'Watch out for', body: "Card skimming/fraud at port-area shops is a repeated, independently reported complaint — several travelers describe unauthorized charges after paying by card for small purchases; pay cash in the shops and be wary of stalls with multiple card readers. The cruise terminal itself (pool, aviary, some restaurants) was reported mid-renovation as of weeks before this sailing, tied to a contested redevelopment project — the port and beach clubs themselves are unaffected, but don't plan your day around terminal amenities; check current status once aboard. Sargassum (seaweed) has also been reported on Costa Maya-area beaches this season — ask your beach club about current conditions. Street vendors in the shopping area are described as unusually persistent compared to other stops." }
+      ],
+      notFound: [
+        "MSC Seascape's exact disembarkation start time and all-aboard time at Costa Maya — no first-hand report found for this ship/port.",
+        "A single definitive taxi price — genuinely contested across sources ($4 flat, ~$8–$10 typical, $100 outlier when rushed)."
+      ],
+      sources: [
+        { label: 'Is Costa Maya a tender port? — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2417267-is-costa-maya-a-tender-port/' },
+        { label: 'Carnival Magic skipped port thread — r/Cruise', url: 'https://www.reddit.com/r/Cruise/comments/1b8tjev/carnival_magic_skipped_port_for_so_far_no/' },
+        { label: 'Questions about getting off the ship without an excursion — r/Cruise', url: 'https://www.reddit.com/r/Cruise/comments/1o8rypx/questions_about_getting_off_the_ship_without_an/' },
+        { label: 'Length of Pier — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/272831-length-of-pier/' },
+        { label: 'Is there any point getting off the ship in Costa Maya — r/NCL', url: 'https://www.reddit.com/r/NCL/comments/1p49wj2/is_there_any_point_getting_off_the_ship_in_costa/' },
+        { label: 'Cruise port to Mahahual — $100 taxi thread — TripAdvisor', url: 'https://www.tripadvisor.com/ShowTopic-g499450-i10621-k14010586-Cruise_port_to_Mahahual_100_taxi_from_Mahahual_to_port-Mahahual_Costa_Maya_Yucatan_Penins.html' },
+        { label: 'Costa Maya Mahahual Beach — can we walk to it — r/MSCCruises', url: 'https://www.reddit.com/r/MSCCruises/comments/1reojab/costa_maya_mahahual_beach_can_we_walk_to_it/' },
+        { label: 'Questions about getting off the ship without an excursion — r/MSCCruises', url: 'https://www.reddit.com/r/MSCCruises/comments/1o8rwte/questions_about_getting_off_the_ship_without_an/' },
+        { label: 'Costa Maya Open for Everyone — TripAdvisor', url: 'https://www.tripadvisor.com/ShowTopic-g499450-i10621-k15463374-Costa_Maya_Open_for_Everyone-Mahahual_Costa_Maya_Yucatan_Peninsula.html' },
+        { label: 'Majahual/Costa Maya scam warning — r/Cruise', url: 'https://www.reddit.com/r/Cruise/comments/1usr32e/majahualcosta_maya_scam_warning/' },
+        { label: '"Costa Maya Port is now Costa Closed" (terminal renovation) — r/MSCCruises', url: 'https://www.reddit.com/r/MSCCruises/comments/1vlnuql/costa_maya_port_is_now_costa_closed/' }
+      ]
+    },
+    {
+      dayId: 'day-roatan',
+      sections: [
+        { title: 'Getting off the ship', body: "MSC docks directly at the pier in Coxen Hole — not a tender. Coxen Hole and Mahogany Bay are two separate cruise terminals about 3 miles apart; Mahogany Bay belongs to Carnival, and MSC does not use it (confirmed directly by MSC Seascape passengers online). No source gives an exact minute for when the gangway opens — check the ship's app that morning." },
+        { title: 'All-aboard / return cutoff', body: "Not confirmed specifically for MSC at Roatan. The general rule experienced cruisers cite for docked ports is “all aboard” 30 minutes before sail-away — but always use your actual boarding card/app time, not this general rule. Past cruisers specifically flag Roatan as a port where knowing your exact pier matters — confirm before going ashore, don't assume." },
+        { title: 'Distances', body: "West Bay Beach is about 11 km / ~20 minutes by taxi from Coxen Hole (reported $20–$31 range — confirm whether the price quoted is per-person or per-taxi before agreeing). Brady's Cay (correct spelling, not “Brady Cay”) is a private-island beach club near French Harbour; getting there involves a short drive to a boat dock followed by a ~15–20 minute boat ride out to the cay — this matches the setup for the group's already-booked Package A/B with Herbert, so no change needed there. Mahogany Bay itself is ~3 miles/15 minutes away by taxi but isn't relevant since this ship doesn't dock there." },
+        { title: 'Getting around independently', body: "Taxi is the default and only confirmed method — no ride-hailing app was found operating on the island. Taxis queue right at the port; agree on price, confirm currency (USD vs. lempira) and whether the fare is per-person or per-taxi before getting in. Some travelers first taxi/minibus to West End, then take a cheap (~$3/person) water taxi over to West Bay Beach. Repeat visitors recommend pre-arranging a known private driver for the day rather than grabbing a random taxi if you want more reliability." },
+        { title: 'Watch out for', body: "A documented “taxi mob” at Coxen Hole: one longtime repeat visitor described being swarmed by taxi touts and unwanted “tour guide” pitches so aggressively on one visit that they turned around and got back on the ship rather than deal with it. Taxi pricing is unregulated — negotiate before riding and don't assume a quoted price is per-person unless you confirm it. Coxen Hole vs. Mahogany Bay confusion is common even among people asking about their own MSC sailing online — if any signage or crew member mentions Mahogany Bay, that's not this ship's dock." }
+      ],
+      notFound: [
+        'Exact gangway-opening time at Coxen Hole for MSC.',
+        'Any confirmed MSC-specific "left behind at Roatan" incident (only generic cross-line patterns found).',
+        'A precise current (2026) taxi rate from real cruiser testimony — a company-published rate card exists (roatan.online) separate from forum reports, listed below for reference.'
+      ],
+      sources: [
+        { label: 'Coxen Hole: number of ships at pier vs. anchoring — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2828166-coxen-hole-number-of-ships-at-pier-vs-anchoring/' },
+        { label: 'Coxen Hole NCL tendering question — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2204344-coxen-hole-ncl-tendering-question/' },
+        { label: 'Coxen Hole - dock or tender? — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2688458-coxen-hole-dock-or-tender/' },
+        { label: 'Roatan port schedule (Sep 10, 2026 arrivals) — CruiseMapper', url: 'https://www.cruisemapper.com/ports/roatan-island-port-29' },
+        { label: 'General guideline for when to return to ship on port days — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/3018129-general-guideline-for-when-to-return-to-ship-on-port-days/' },
+        { label: 'Roatan, Honduras port overview — CruiseDig', url: 'https://cruisedig.com/ports/roatan-honduras' },
+        { label: 'Mahogany Bay to Coxen Hole — how far is it? — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/1930784-mahagony-bay-to-coxen-hole-how-far-is-it/' },
+        { label: 'Excursion Suggestions - Seascape - Roatan — r/MSCCruises', url: 'https://www.reddit.com/r/MSCCruises/comments/1u3z69i/excursion_suggestions_seascape_roatan/' },
+        { label: 'Which Roatan port does MSC Seashore stop at? — r/MSCCruises', url: 'https://www.reddit.com/r/MSCCruises/comments/1i50m4v/which_roatan_port_does_msc_seashore_stop_at/' },
+        { label: 'Coxen Hole → West Bay distance/cost — Rome2Rio', url: 'https://www.rome2rio.com/s/Coxen-Hole/West-Bay-Honduras' },
+        { label: 'Traveling from Coxen Hole to West Bay — TripAdvisor', url: 'https://www.tripadvisor.com/ShowTopic-g944573-i12645-k11598005-Traveling_from_coxen_hole_to_west_bay-West_Bay_Roatan_Bay_Islands.html' },
+        { label: 'Taxi cost to beach — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2993563-taxi-cost-to-beach/' },
+        { label: "Brady's Cay and LFK review, Dec 2024 — Cruise Critic", url: 'https://boards.cruisecritic.com/topic/3053846-bradys-cay-and-lfk-review-from-december-2024-spoiler-alertbradys-cay-was-the-best-day-in-roatan-ever/' },
+        { label: 'Are taxis unsafe? — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2848062-are-taxis-unsafe/' },
+        { label: 'Taxi? Driver? (taxi mob account) — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2955630-taxi-driver/' },
+        { label: 'Roatan taxi rate card (company-published, not forum) — roatan.online', url: 'https://roatan.online/taxi-rates' }
+      ]
+    },
+    {
+      dayId: 'day-cozumel',
+      sections: [
+        { title: 'Getting off the ship', body: "Cozumel has three separate cruise piers — Punta Langosta (right in downtown San Miguel), and Puerta Maya + the International Pier (both south of town). Which one MSC Seascape actually uses on Sep 11 is genuinely unconfirmed from public sources — the closest data point found was MSC Seascape's sister ship (Seashore) using Punta Langosta on one 2024 sailing, which isn't a guarantee. Confirm which pier you're at from the ship's app/daily program that morning, or ask a crew member the evening before — this one fact changes your walking distance to everything else by miles. No source suggests tendering is used at any of the three piers." },
+        { title: 'All-aboard / return cutoff', body: "Not confirmed specifically for this stop. One MSC data point (different ship, different region) suggests MSC has posted “all aboard” times as tight as 1 hour before departure at some ports — treat this as illustrative, not a Cozumel-specific number; use your actual boarding card/app time. Real-world strictness is well documented though: ship-booked excursions get tracked and waited for, independent activities do not, and being left behind does happen to people who cut it close. Experienced cruisers recommend a 2–3 hour buffer for anything independent. Two bars right next to the piers (Three Amigos, Senor Frogs) are specifically named as places where people lose track of time and nearly miss the ship." },
+        { title: 'Distances (pier-dependent)', body: "If docked at Punta Langosta: you step off directly into San Miguel town, though Royal Village and the ATV meeting point would then be a taxi ride away. If docked at Puerta Maya/International Pier: San Miguel town is about 2.5–3 miles / a short taxi ride (also described as a walkable, if warm, ~1-hour waterside sidewalk walk). Royal Village Shopping Center — where the ATV tour meets — is reported to be only about 0.3 miles from Puerta Maya, i.e. very close if docked there. Popular beach clubs run roughly 15–20 minutes by taxi from the southern piers; reported fares include ~$40 for a 7-person taxi to Paradise Beach and a disputed $15–$88 total range for Mr. Sanchos/Nachi Cocom — always confirm the total price and passenger count before riding, not a per-person assumption." },
+        { title: 'Getting around independently', body: "No Uber operates in Cozumel. A local taxi-union app (“Eiby Taxi”) exists with upfront pricing, but riders report it explicitly does not work for pickups at the cruise terminals — so at the pier, it's the standard taxi queue. Real cruisers warn the official, posted-rate taxi stand can be easy to miss, with unofficial touts reaching you first right as you step off — look specifically for the marked stand rather than the first person who waves you over. Always confirm the total fare and number of passengers out loud before getting in; card vs. cash acceptance is inconsistently reported, so carry both US cash and pesos to be safe." },
+        { title: 'Watch out for', body: "A documented, ship-specific gotcha for the Seascape: MSC reportedly runs on “ship time,” not local Cozumel time, for its printed schedules — a 2026 reviewer's group showed up 45 minutes to an hour late to an independent tour because they assumed local time. Double-check this on the app before setting any meeting time, including for the ATV tour and for timing Jummah. Which-pier confusion is a widely flagged, real problem — confirm yours before booking any transport. Fake gold/diamond/leather goods are a repeated complaint at shops immediately around the piers, including right at Royal Village itself. On Jummah specifically: no forum thread discussing mosque/prayer logistics in Cozumel was found at all — the one real source located (a Muslim-travel city guide, not a forum) states there is no known mosque on the island and recommends using your cabin or a private space for prayer, so plan Jummah around the ship rather than expecting a venue ashore." }
+      ],
+      notFound: [
+        'Which pier MSC Seascape will actually use on Sep 11, 2026 (only one non-Seascape, 2024 data point found).',
+        'The exact published "all aboard" time MSC uses at Cozumel specifically.',
+        'What time passengers are typically first let off the ship at Cozumel.',
+        'Any Reddit/Cruise Critic/TripAdvisor forum discussion of Jummah/mosque logistics in Cozumel — genuinely not found, not just unconfirmed.'
+      ],
+      sources: [
+        { label: 'Cozumel port schedule (Sep 11, 2026 arrival/departure) — CruiseMapper', url: 'https://www.cruisemapper.com/ports/cozumel-port-26' },
+        { label: 'Which cruise port does MSC dock at in Cozumel? — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/3023175-which-cruise-port-does-msc-dock-at-in-cozumel/' },
+        { label: 'Mall across from the pier (pier/cruise-line breakdown) — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/2291504-mall-across-from-the-pier/' },
+        { label: 'Did I get ripped off in taxi from Punta Langosta — r/cozumel', url: 'https://www.reddit.com/r/cozumel/comments/1ddh11o/did_i_get_ripped_off_in_taxi_from_punta_langosta/' },
+        { label: 'Question on "all aboard" MSC — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/3064622-question-on-all-aboard-msc/' },
+        { label: 'Left behind due to non-cruise-associated shore activity — r/Cruise', url: 'https://www.reddit.com/r/Cruise/comments/1nkbvkv/left_behind_due_to_noncruise_associated_shore/' },
+        { label: 'Can you walk into town from the port? — Cruise Critic', url: 'https://boards.cruisecritic.com/topic/1313025-can-you-walk-into-town-from-the-port/' },
+        { label: 'Royal Village Shopping Center reviews/distance — TripAdvisor', url: 'https://www.tripadvisor.com/Attraction_Review-g150809-d7085387-Reviews-Royal_Village_Shopping_Center-Cozumel_Yucatan_Peninsula.html' },
+        { label: 'Current taxi prices for Cozumel — r/Cruise', url: 'https://www.reddit.com/r/Cruise/comments/1c0dafv/current_taxi_prices_for_cozumel/' },
+        { label: 'Uber-type app in Cozumel (Eiby Taxi) — r/cozumel', url: 'https://www.reddit.com/r/cozumel/comments/1co051d/uber_type_app_in_cozumel/' },
+        { label: 'Do you want fair taxi rates in Cozumel — r/cozumel', url: 'https://www.reddit.com/r/cozumel/comments/1pfpdgu/do_you_want_fair_taxi_rates_in_cozumel/' },
+        { label: 'Cozumel Cruise Excursions / Private Tours reviews ("ship time" gotcha) — TripAdvisor', url: 'https://www.tripadvisor.com/Attraction_Review-g150809-d651462-Reviews-Cozumel_Cruise_Excursions_Private_Tours-Cozumel_Yucatan_Peninsula.html' },
+        { label: 'Cozumel city guide (mosque/prayer note) — HalalTrip', url: 'https://www.halaltrip.com/city-guide-details/340/cozumel/' }
+      ]
+    }
+  ];
+
+  function buildPortGuideDayCard(entry){
+    var day = findDay(state, entry.dayId);
+    if (!day) return '';
+    var sectionsHtml = entry.sections.map(function(s, i){
+      return '<div class="pg-sub' + (i === 0 ? ' first' : '') + '">' + escapeHtml(s.title) + '</div>' +
+        '<p class="pg-body">' + escapeHtml(s.body) + '</p>';
+    }).join('');
+    var notFoundHtml = (entry.notFound && entry.notFound.length) ?
+      '<div class="pg-notfound"><div class="pg-notfound-title">Could not confirm from real sources</div><ul>' +
+      entry.notFound.map(function(t){ return '<li>' + escapeHtml(t) + '</li>'; }).join('') + '</ul></div>' : '';
+    var sourcesHtml = (entry.sources && entry.sources.length) ?
+      '<div class="pg-sources"><div class="pg-sources-title">Sources used</div><ol>' +
+      entry.sources.map(function(s){
+        var u = safeUrl(s.url);
+        return '<li>' + (u ? ('<a href="' + escapeAttr(u) + '" target="_blank" rel="noopener">' + escapeHtml(s.label) + '</a>') : escapeHtml(s.label)) + '</li>';
+      }).join('') + '</ol></div>' : '';
+    return '<div class="day-card pg-card"><div class="day-card-head">' +
+      (day.label ? '<span class="day-label">' + escapeHtml(day.label) + '</span>' : '') +
+      '<div class="day-title-row"><span class="day-title">' + escapeHtml(day.title) + '</span>' + (day.time ? '<span class="day-time">' + escapeHtml(day.time) + '</span>' : '') + '</div>' +
+      '</div>' + sectionsHtml + notFoundHtml + sourcesHtml + '</div>';
+  }
+
+  function buildPortGuideSection(){
+    var cards = PORT_GUIDE.map(buildPortGuideDayCard).join('');
+    return '<section class="panel portguide-panel" id="port-guide"><div class="panel-head"><span class="eyebrow">How the day actually works</span><h2>Port Guide</h2>' +
+      '<p class="lede">Real logistics for each port day — drop-off, return cutoff, distances, and how to get around — pulled from actual past-cruiser discussions on Reddit, Cruise Critic, and TripAdvisor, with links so you can check them yourself. Anything we couldn’t confirm from a real source is called out rather than guessed.</p>' +
+      '<div class="pg-disclaimer">This is background research from public forums, not official MSC information and not a guarantee — confirm times and pier assignments on the ship’s app/daily program once aboard, since these can change.</div></div>' +
+      '<div class="day-grid">' + cards + '</div></section>';
+  }
+
   // ---------- dashboard ("the full picture") ----------
   function buildDashboardByDay(){
     return sortedDays(state).map(function(day){
@@ -1218,7 +1358,7 @@
       rootEl.innerHTML = '<div class="page"><p class="hint">Something went wrong loading this page. Refresh, or ask Thameem to check the link.</p></div>';
       return;
     }
-    rootEl.innerHTML = '<div class="page">' + buildHeader() + buildMobileNav() + '<main>' + buildFamilySection() + buildOverviewSection() + buildExploreSection() + buildDashboardSection() + buildAddActivitySection() + '</main>' + buildFooter() + '</div>';
+    rootEl.innerHTML = '<div class="page">' + buildHeader() + buildMobileNav() + '<main>' + buildFamilySection() + buildOverviewSection() + buildExploreSection() + buildPortGuideSection() + buildDashboardSection() + buildAddActivitySection() + '</main>' + buildFooter() + '</div>';
   }
 
   // ---------- event delegation ----------
